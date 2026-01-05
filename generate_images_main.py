@@ -5,7 +5,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-
+from tqdm import tqdm
+from generate_data import generate_img
 
 def _float01_to_u8_bgr(img_rgb_float01: np.ndarray) -> np.ndarray:
     img = np.clip(img_rgb_float01, 0.0, 1.0)
@@ -32,18 +33,11 @@ def main() -> int:
         "-o",
         "--out",
         type=Path,
-        default=Path("out/generated"),
+        default=Path("out/dataset_fixed"),
         help="Output directory.",
     )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        choices=["fixed", "generic"],
-        default="fixed",
-        help="Data generator mode: fixed uses generate_data.py; generic uses generate_data_generic.py.",
-    )
-    parser.add_argument("-n", "--num", type=int, default=100, help="Total samples.")
-    parser.add_argument("--batch-size", type=int, default=32, help="Batch size.")
+    parser.add_argument("-n", "--num", type=int, default=10000, help="Total samples.")
+    parser.add_argument("--batch-size", type=int, default=1, help="Batch size.")
     parser.add_argument(
         "--save",
         choices=["png", "npz", "both"],
@@ -53,10 +47,10 @@ def main() -> int:
     parser.add_argument(
         "--setting",
         type=str,
-        default="",
+        default="120,160,15,20",
         help='Override generator setting as "W,H,N,M" (e.g. "80,112,10,14").',
     )
-    parser.add_argument("--seed", type=int, default=0, help="Random seed (0 disables).")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (0 disables).")
     args = parser.parse_args()
 
     if args.num <= 0:
@@ -80,7 +74,7 @@ def main() -> int:
     (out_dir / "labels").mkdir(parents=True, exist_ok=True)
 
     meta = {
-        "mode": args.mode,
+        "mode": "fixed",
         "num": args.num,
         "batch_size": args.batch_size,
         "save": args.save,
@@ -91,10 +85,10 @@ def main() -> int:
         json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
-    if args.mode == "fixed":
-        from generate_data import generate_img
+    
 
-        gen = generate_img(batch_size=args.batch_size, setting=setting)
+    gen = generate_img(batch_size=args.batch_size, setting=setting)
+    with tqdm(total=args.num, desc="generate", unit="img", dynamic_ncols=True) as pbar:
         for start, end, count in _chunks(args.num, args.batch_size):
             X, Y = next(gen)
             X = X[:count]
@@ -122,36 +116,7 @@ def main() -> int:
                         y=Y[i].astype(np.float32),
                     )
 
-    else:
-        from generate_data_generic import generate_img
-
-        gen = generate_img(batch_size=args.batch_size, setting=setting)
-        for start, end, count in _chunks(args.num, args.batch_size):
-            X, Y_list = next(gen)
-            X = X[:count]
-            Y_list = [y[:count] for y in Y_list]
-
-            for i in range(count):
-                idx = start + i
-                img0 = X[i, :, :, 0:3] + 0.5
-                img1 = X[i, :, :, 3:6] + 0.5
-
-                if args.save in ("png", "both"):
-                    cv2.imwrite(
-                        str(out_dir / "images" / f"{idx:06d}_0.png"),
-                        _float01_to_u8_bgr(img0),
-                    )
-                    cv2.imwrite(
-                        str(out_dir / "images" / f"{idx:06d}_1.png"),
-                        _float01_to_u8_bgr(img1),
-                    )
-
-                if args.save in ("npz", "both"):
-                    arrays = {
-                        "x": X[i].astype(np.float32),
-                        **{f"y{k}": y[i].astype(np.float32) for k, y in enumerate(Y_list)},
-                    }
-                    _save_npz(out_dir / "labels" / f"{idx:06d}.npz", **arrays)
+            pbar.update(count)
 
     (out_dir / "meta" / "done.txt").write_text("ok\n", encoding="utf-8")
     return 0
@@ -159,4 +124,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

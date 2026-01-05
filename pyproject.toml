@@ -3,16 +3,9 @@ name = "neural-tracking"
 version = "0.0.0"
 requires-python = ">=3.10,<3.11"
 dependencies = [
-  "h5py>=3.0",
-  "matplotlib>=3.5",
   "numba>=0.56",
   "numpy>=1.22,<2",
   "opencv-python>=4.6",
   "tqdm>=4.60",
   "torch>=2.0",
-  "tensorflow==2.10.*",
-  "keras==2.10.*",
 ]
-
-[tool.uv]
-dev-dependencies = []

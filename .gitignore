@@ -1,10 +1,12 @@
 .DS_Store
-*.mov
-*.h5
-models/test
-__pycache__
-out
+__pycache__/
+.venv/
+
+# Generated artifacts
+out/
+models/
+models_torch/
 *.npz
 *.pt
-*.md
-*.lock
+*.h5
+uv.lock
