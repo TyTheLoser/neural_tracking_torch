@@ -127,10 +127,10 @@ def generate_img(batch_size=32, setting=None):
         x = np.arange(interval_x, W, interval_x)[:N]
         y = np.arange(interval_y, H, interval_y)[:M]
         xind, yind = np.meshgrid(x, y)
-        xind = (xind.reshape([1,-1])[0]).astype(np.int)
-        yind = (yind.reshape([1,-1])[0]).astype(np.int)
-        xind += (np.random.random(xind.shape)*4-2).astype(np.int)
-        yind += (np.random.random(xind.shape)*4-2).astype(np.int)
+        xind = (xind.reshape([1,-1])[0]).astype(int)
+        yind = (yind.reshape([1,-1])[0]).astype(int)
+        xind += (np.random.random(xind.shape)*4-2).astype(int)
+        yind += (np.random.random(xind.shape)*4-2).astype(int)
         
         for i in range(batch_size):
             rng = np.random.random()

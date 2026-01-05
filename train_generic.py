@@ -1,9 +1,10 @@
 import tensorflow.compat.v1 as tf
+tf.disable_eager_execution()
+
 from tensorflow import keras
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, Flatten, Dropout, Input, Concatenate
-from keras.layers import (
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, Input, Concatenate
+from tensorflow.keras.layers import (
     Conv2D,
     MaxPooling2D,
     ZeroPadding2D,
@@ -11,8 +12,8 @@ from keras.layers import (
     UpSampling2D,
     Add,
 )
-from keras.models import load_model
-from keras.models import Model
+from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Model
 
 import random
 import numpy as np
@@ -52,7 +53,7 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 train_sess = tf.Session(graph=train_graph, config=config)
 
-keras.backend.set_session(train_sess)
+tf.keras.backend.set_session(train_sess)
 
 
 def build_model_ae():

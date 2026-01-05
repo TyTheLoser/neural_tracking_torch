@@ -1,9 +1,10 @@
 import tensorflow.compat.v1 as tf
+tf.disable_eager_execution()
+
 from tensorflow import keras
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, Conv2D, Flatten, Dropout, Input, Concatenate
-from keras.layers import (
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, Input, Concatenate
+from tensorflow.keras.layers import (
     Conv2D,
     MaxPooling2D,
     ZeroPadding2D,
@@ -12,8 +13,8 @@ from keras.layers import (
     Add,
     AveragePooling2D,
 )
-from keras.models import load_model
-from keras.models import Model
+from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Model
 
 import random
 import numpy as np
@@ -51,7 +52,7 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 train_sess = tf.Session(graph=train_graph, config=config)
 
-keras.backend.set_session(train_sess)
+tf.keras.backend.set_session(train_sess)
 
 
 def build_model_small():
@@ -99,7 +100,7 @@ with train_graph.as_default():
     train_sess.run(tf.global_variables_initializer())
     #     model = load_model('models/random_ae/tracking_029_0.631.h5')
 
-    optimizer = keras.optimizers.Adam(
+    optimizer = keras.optimizers.legacy.Adam(
         lr=lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False
     )
     model.compile(optimizer=optimizer, loss="mean_squared_error")
@@ -122,6 +123,35 @@ def preprocessing(img):
     return ret
 
 
+def _to_u8_bgr(img_float01):
+    img = np.clip(img_float01, 0.0, 1.0)
+    img_u8 = (img * 255.0 + 0.5).astype(np.uint8)
+    return cv2.cvtColor(img_u8, cv2.COLOR_RGB2BGR)
+
+
+def _draw_pred_arrows(img_float01, flow, scale=5):
+    img_bgr = _to_u8_bgr(img_float01)
+    img_big = cv2.resize(img_bgr, (img_bgr.shape[1] * scale, img_bgr.shape[0] * scale))
+
+    gh, gw = flow.shape[0], flow.shape[1]
+    sx = img_bgr.shape[0] / float(gh)
+    sy = img_bgr.shape[1] / float(gw)
+
+    color = (0, 255, 255)
+    for i in range(gh):
+        for j in range(gw):
+            x0 = (i + 0.5) * sx
+            y0 = (j + 0.5) * sy
+            dx = float(flow[i, j, 0])
+            dy = float(flow[i, j, 1])
+
+            p0 = (int(round(y0 * scale)), int(round(x0 * scale)))
+            p1 = (int(round((y0 + dy) * scale)), int(round((x0 + dx) * scale)))
+            cv2.arrowedLine(img_big, p0, p1, color, 2, 8, 0, 0.4)
+
+    return img_big
+
+
 with train_graph.as_default():
 
     min_loss = 100
@@ -141,6 +171,13 @@ with train_graph.as_default():
         pred = model.predict(X_test)
         loss = ((pred - Y_test) ** 2).mean()
         print(loss)
+
+        out_dir = os.path.join("out", "eval", prefix, f"epoch_{i:03d}")
+        os.makedirs(out_dir, exist_ok=True)
+        for k in range(0, X_test.shape[0], 100):
+            img_cur = X_test[k, :, :, 3:6] + 0.5
+            vis = _draw_pred_arrows(img_cur, pred[k])
+            cv2.imwrite(os.path.join(out_dir, f"val_{k:04d}.png"), vis)
 
         if loss < min_loss:
             min_loss = loss

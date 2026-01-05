@@ -196,12 +196,12 @@ cv2.setMouseCallback("image", motion_callback)
 
 flag_first = False
 
-model = load_model("models/weights.h5")
+model = load_model("models/test/tracking_013_6.241.h5")
 
 svid = 0
 
-xind = (np.random.random(N * M) * W).astype(np.int)
-yind = (np.random.random(N * M) * H).astype(np.int)
+xind = (np.random.random(N * M) * W).astype(int)
+yind = (np.random.random(N * M) * H).astype(int)
 
 # T = 4
 interval_x = W / (N + 1)
@@ -210,8 +210,8 @@ interval_y = H / (M + 1)
 x = np.arange(interval_x, W, interval_x)[:N]
 y = np.arange(interval_y, H, interval_y)[:M]
 xind, yind = np.meshgrid(x, y)
-xind = (xind.reshape([1, -1])[0]).astype(np.int)
-yind = (yind.reshape([1, -1])[0]).astype(np.int)
+xind = (xind.reshape([1, -1])[0]).astype(int)
+yind = (yind.reshape([1, -1])[0]).astype(int)
 
 
 xx_marker, yy_marker = xx[xind, yind].reshape([N, M]), yy[xind, yind].reshape([N, M])

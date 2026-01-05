@@ -14,6 +14,22 @@ This project provides robust marker tracking for camera-based tactile sensors wi
 pip install tensorflow-gpu opencv-python
 ```
 
+## Conda + uv 环境（推荐）
+
+在项目根目录：
+
+```bash
+conda env create -f environment.yml
+conda activate neural_tracking
+uv sync
+```
+
+验证：
+
+```bash
+python -c "import cv2, numpy, matplotlib, numba, h5py; import tensorflow as tf; print(tf.__version__)"
+```
+
 **Download models**
 
 ```
