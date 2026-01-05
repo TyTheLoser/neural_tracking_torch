@@ -12,10 +12,10 @@ uv sync
 
 ## 生成离线数据集（来自 `generate_data.py`）
 
-默认输出到 `out/dataset_fixed/labels/*.npz`：
+默认输出到 `out/dataset_fixed`：
 
 ```bash
-conda run -n neural_tracking uv run python generate_images_main.py -n 50000 --batch-size 64 --save npz
+conda run -n neural_tracking uv run python generate_images_main.py -n 50000 --batch-size 64 --save both
 ```
 
 ## 训练（PyTorch）
