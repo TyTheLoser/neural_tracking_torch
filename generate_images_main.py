@@ -27,6 +27,17 @@ def _chunks(total: int, batch_size: int):
         yield start, end, end - start
 
 
+def _infer_next_index(labels_dir: Path) -> int:
+    if not labels_dir.is_dir():
+        return 0
+    max_idx = -1
+    for p in labels_dir.glob("*.npz"):
+        stem = p.stem
+        if stem.isdigit():
+            max_idx = max(max_idx, int(stem))
+    return max_idx + 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate synthetic training images.")
     parser.add_argument(
@@ -43,6 +54,12 @@ def main() -> int:
         choices=["png", "npz", "both"],
         default="both",
         help="Save images as PNG, arrays as NPZ, or both.",
+    )
+    parser.add_argument(
+        "--start-idx",
+        type=int,
+        default=None,
+        help="Start index for filenames. Default: append after existing labels/*.npz.",
     )
     parser.add_argument(
         "--setting",
@@ -73,6 +90,12 @@ def main() -> int:
     (out_dir / "images").mkdir(parents=True, exist_ok=True)
     (out_dir / "labels").mkdir(parents=True, exist_ok=True)
 
+    start_idx = args.start_idx
+    if start_idx is None:
+        start_idx = _infer_next_index(out_dir / "labels")
+    if start_idx < 0:
+        raise SystemExit("--start-idx must be >= 0")
+
     meta = {
         "mode": "fixed",
         "num": args.num,
@@ -95,7 +118,7 @@ def main() -> int:
             Y = Y[:count]
 
             for i in range(count):
-                idx = start + i
+                idx = start_idx + start + i
                 img0 = X[i, :, :, 0:3] + 0.5
                 img1 = X[i, :, :, 3:6] + 0.5
 
