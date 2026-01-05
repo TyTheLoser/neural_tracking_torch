@@ -4,9 +4,10 @@ __pycache__/
 
 # Generated artifacts
 out/
-models/
+models/smoke
 models_torch/
 *.npz
 *.pt
 *.h5
 uv.lock
+models/test/*.py
