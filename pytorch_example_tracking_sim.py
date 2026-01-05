@@ -78,7 +78,7 @@ def load_torch_model(ckpt_path: Path, device: torch.device) -> SmallTrackerNet:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Interactive tracking demo (PyTorch).")
-    parser.add_argument("--ckpt", type=Path, default="models/test/tracking_023_8.220.pt", help="Path to .pt checkpoint.")
+    parser.add_argument("--ckpt", type=Path, default="models/test/checkpoint_best.pt", help="Path to .pt checkpoint.")
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument("--W", type=int, default=120)
     parser.add_argument("--H", type=int, default=160)

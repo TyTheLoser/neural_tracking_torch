@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 from torch.utils.data import DataLoader, Dataset, Subset
 
 
@@ -138,15 +139,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Train marker tracking model (PyTorch, TF-style loop).")
     parser.add_argument("--data-dir", type=Path, default=Path("out/dataset_fixed"))
     parser.add_argument("-p", "--prefix", default="test")
-    parser.add_argument("-lr", "--lr", type=float, default=0.00001)
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--steps-per-epoch", type=int, default=2000)
+    parser.add_argument("-lr", "--lr", type=float, default=0.0001)
+    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--steps-per-epoch", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--val-ratio", type=float, default=0.1)
     parser.add_argument("--val-size", type=int, default=1000)
     parser.add_argument("--val-save-every", type=int, default=100)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Resume from best checkpoint if present (resumes from best epoch).",
+    )
     args = parser.parse_args()
 
     prefix = args.prefix
@@ -163,6 +170,8 @@ def main() -> int:
     shutil.copy("pytorch_train.py", str(model_dir / "pytorch_train.py"))
     if Path("generate_data.py").exists():
         shutil.copy("generate_data.py", str(model_dir / "generate_data.py"))
+
+    best_ckpt_path = model_dir / "checkpoint_best.pt"
 
     dataset = OfflineNPZDataset(args.data_dir)
     n_total = len(dataset)
@@ -203,14 +212,37 @@ def main() -> int:
     # Fixed validation set, like TF version.
     X_test, Y_test = _load_fixed_val(val_loader, num=args.val_size, device=device)
 
-    min_loss = 100.0
+    start_epoch = 0
+    min_loss = float("inf")
+
+    if args.resume and best_ckpt_path.exists():
+        ckpt = torch.load(best_ckpt_path, map_location="cpu")
+        if isinstance(ckpt, dict) and "model" in ckpt:
+            model.load_state_dict(ckpt["model"])
+            if "optimizer" in ckpt:
+                optimizer.load_state_dict(ckpt["optimizer"])
+            start_epoch = int(ckpt.get("epoch", -1)) + 1
+            min_loss = float(ckpt.get("loss", min_loss))
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr
+            print(f"resume from {best_ckpt_path} (epoch={start_epoch}, best_loss={min_loss:.6f})")
+
     train_iter = _iter_forever(train_loader)
 
-    for epoch in range(args.epochs):
-        print("epoch", epoch)
+    if start_epoch >= args.epochs:
+        print(f"Nothing to do: start_epoch={start_epoch} >= epochs={args.epochs}")
+        return 0
+
+    epoch_pbar = tqdm(range(start_epoch, args.epochs), desc="train", unit="epoch", dynamic_ncols=True)
+    for epoch in epoch_pbar:
+        step_pbar = tqdm(range(args.steps_per_epoch), desc=f"epoch {epoch}", unit="step", leave=False, dynamic_ncols=True)
         model.train()
 
-        for _ in range(args.steps_per_epoch):
+        train_loss_sum = 0.0
+        train_loss_count = 0
+        t0 = time.time()
+
+        for step in step_pbar:
             xb, yb = next(train_iter)
             xb = xb.to(device=device, non_blocking=True)
             yb = yb.to(device=device, non_blocking=True)
@@ -222,11 +254,21 @@ def main() -> int:
             loss.backward()
             optimizer.step()
 
+            loss_v = float(loss.detach().cpu().item())
+            bs = xb.shape[0]
+            train_loss_sum += loss_v * bs
+            train_loss_count += bs
+            if step == 0 or (step + 1) % 10 == 0:
+                step_pbar.set_postfix(loss=f"{loss_v:.6f}")
+
         model.eval()
         with torch.no_grad():
             pred = model(X_test)
-            loss = ((pred - Y_test) ** 2).mean().item()
-        print(loss)
+            val_loss = ((pred - Y_test) ** 2).mean().item()
+
+        train_loss = train_loss_sum / max(1, train_loss_count)
+        epoch_dt = time.time() - t0
+        epoch_pbar.set_postfix(train=f"{train_loss:.6f}", val=f"{val_loss:.6f}", best=f"{min_loss:.6f}", s=f"{epoch_dt:.1f}")
 
         out_dir = Path("out") / "eval" / prefix / f"epoch_{epoch:03d}"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -239,20 +281,20 @@ def main() -> int:
             vis = _draw_pred_arrows(img_cur, pred_np[k], scale=5)
             cv2.imwrite(str(out_dir / f"val_{k:04d}.png"), vis)
 
-        if loss < min_loss:
-            min_loss = loss
+        if val_loss < min_loss:
+            min_loss = float(val_loss)
             ckpt = {
                 "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
                 "epoch": epoch,
-                "loss": float(loss),
+                "loss": min_loss,
                 "prefix": prefix,
                 "lr": lr,
             }
-            torch.save(ckpt, model_dir / f"tracking_{epoch:03d}_{loss:.3f}.pt")
+            torch.save(ckpt, best_ckpt_path)
 
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
