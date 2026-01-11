@@ -192,7 +192,7 @@ def preprocessing(img, W, H):
     return ret
 
 
-def generate_img(batch_size=32, setting=None):
+def generate_img(batch_size=32, setting=None, marker_npz_path=None):
 
     while True:
 
@@ -204,9 +204,55 @@ def generate_img(batch_size=32, setting=None):
         if not (setting is None):
             W, H, N, M = setting
 
+        # 从npz加载marker或生成合成marker
+        if marker_npz_path is not None:
+            data = np.load(marker_npz_path)
+            grid_points = data['grid_points']  # (N_orig, M_orig, 2)
+
+            # 获取原始图像尺寸
+            orig_W = int(np.max(grid_points[..., 0])) + 1
+            orig_H = int(np.max(grid_points[..., 1])) + 1
+
+            # Resize到目标尺寸
+            scale_x = W / orig_W
+            scale_y = H / orig_H
+
+            # 应用缩放并获取marker索引
+            xx_marker_base = grid_points[..., 0] * scale_x
+            yy_marker_base = grid_points[..., 1] * scale_y
+            xx_marker_base = np.clip(xx_marker_base, 0, W - 1).astype(float)
+            yy_marker_base = np.clip(yy_marker_base, 0, H - 1).astype(float)
+
+            xind = np.round(xx_marker_base).astype(int).flatten()
+            yind = np.round(yy_marker_base).astype(int).flatten()
+        else:
+            # 原有的合成marker生成逻辑
+            x = np.arange(0, W, 1)
+            y = np.arange(0, H, 1)
+            xx0, yy0 = np.meshgrid(y, x)
+
+            interval_x = W / (N)
+            interval_y = H / (M)
+
+            x = np.arange(interval_x / 2, W, interval_x)[:N]
+            y = np.arange(interval_y / 2, H, interval_y)[:M]
+            xind, yind = np.meshgrid(y, x)
+            #         print(xind)
+            #         print(yind)
+
+            xind = (xind.reshape([1, -1])[0]).astype(int)
+            yind = (yind.reshape([1, -1])[0]).astype(int)
+            xind += (np.random.random(xind.shape) * 2 - 1).astype(int)
+            yind += (np.random.random(yind.shape) * 2 - 1).astype(int)
+
+        # 创建坐标网格（用于后续变形）
         x = np.arange(0, W, 1)
         y = np.arange(0, H, 1)
         xx0, yy0 = np.meshgrid(y, x)
+
+        # 确保索引在范围内
+        xind = np.clip(xind, 0, W - 1)
+        yind = np.clip(yind, 0, H - 1)
 
         interval_x = W / (N)
         interval_y = H / (M)

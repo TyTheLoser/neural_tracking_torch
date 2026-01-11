@@ -140,13 +140,13 @@ def main() -> int:
     parser.add_argument("--data-dir", type=Path, default=Path("out/dataset_fixed"))
     parser.add_argument("-p", "--prefix", default="test")
     parser.add_argument("-lr", "--lr", type=float, default=0.0001)
-    parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--steps-per-epoch", type=int, default=100)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--steps-per-epoch", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--val-ratio", type=float, default=0.1)
     parser.add_argument("--val-size", type=int, default=1000)
     parser.add_argument("--val-save-every", type=int, default=100)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument(
         "--resume",
@@ -162,8 +162,10 @@ def main() -> int:
 
     if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
         device = torch.device("cuda")
+        print(f"Using device: {device} ({torch.cuda.get_device_name(0)})")
     else:
         device = torch.device("cpu")
+        print(f"Using device: {device}")
 
     model_dir = Path("models") / prefix
     model_dir.mkdir(parents=True, exist_ok=True)

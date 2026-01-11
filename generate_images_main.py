@@ -64,9 +64,11 @@ def main() -> int:
     parser.add_argument(
         "--setting",
         type=str,
-        default="120,160,15,20",
+        default="104,144,13,18",
         help='Override generator setting as "W,H,N,M" (e.g. "80,112,10,14").',
     )
+    parser.add_argument("--marker-npz", type=Path, default=None,
+                       help="Path to npz file with real marker grid (e.g., warp_raw_to_px_grid_points_rectified.npz).")
     parser.add_argument("--seed", type=int, default=42, help="Random seed (0 disables).")
     args = parser.parse_args()
 
@@ -103,14 +105,14 @@ def main() -> int:
         "save": args.save,
         "setting": setting,
         "seed": args.seed,
+        "marker_npz": str(args.marker_npz) if args.marker_npz else None,
     }
     (out_dir / "meta" / "config.json").write_text(
         json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
     
-
-    gen = generate_img(batch_size=args.batch_size, setting=setting)
+    gen = generate_img(batch_size=args.batch_size, setting=setting, marker_npz_path=args.marker_npz)
     with tqdm(total=args.num, desc="generate", unit="img", dynamic_ncols=True) as pbar:
         for start, end, count in _chunks(args.num, args.batch_size):
             X, Y = next(gen)

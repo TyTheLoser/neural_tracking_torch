@@ -11,3 +11,7 @@ models_torch/
 *.h5
 uv.lock
 models/test/*.py
+data/
+outputs/
+models/
+models/test/checkpoint_best.pt
